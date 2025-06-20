@@ -13,7 +13,8 @@ import {
   MessageSquare, 
   LogOut, 
   User,
-  GraduationCap
+  GraduationCap,
+  UserCog
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -30,6 +31,7 @@ const navigationItems = [
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/feedback', label: 'Feedback', icon: MessageSquare },
   { href: '/profile', label: 'Profile', icon: User },
+  { href: '/admin', label: 'Admin Panel', icon: UserCog },
 ];
 
 export default function Layout({ children }: LayoutProps) {

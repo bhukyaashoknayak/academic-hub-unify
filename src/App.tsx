@@ -10,6 +10,7 @@ import Dashboard from "@/components/Dashboard";
 import AttendanceModule from "@/components/AttendanceModule";
 import MarksModule from "@/components/MarksModule";
 import ProfileModule from "@/components/ProfileModule";
+import AdminModule from "@/components/AdminModule";
 import Auth from "@/pages/Auth";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,11 @@ function AppRoutes() {
       <Route path="/profile" element={
         <ProtectedRoute>
           <ProfileModule />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin" element={
+        <ProtectedRoute>
+          <AdminModule />
         </ProtectedRoute>
       } />
       <Route path="/timetable" element={

@@ -310,7 +310,7 @@ export default function Dashboard() {
             </div>
           )}
         </CardContent>
-      </div>
+      </Card>
     </div>
   );
 }
