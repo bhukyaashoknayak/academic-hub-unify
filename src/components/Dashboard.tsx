@@ -1,314 +1,249 @@
 
-import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { BookOpen, Calendar, Users, Bell, TrendingUp, Award } from 'lucide-react';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BookOpen, Users, Calendar, TrendingUp, Award, Clock } from 'lucide-react';
 
-interface StudentProfile {
-  id: string;
-  name: string;
-  roll_number: string;
-  branch: string;
-  section: string;
-  year: number;
-  semester: string;
-  cgpa: number;
-}
+// Mock data for charts
+const attendanceData = [
+  { name: 'Present', value: 85, color: '#10B981' },
+  { name: 'Absent', value: 15, color: '#EF4444' }
+];
 
-interface AttendanceStats {
-  totalClasses: number;
-  attendedClasses: number;
-  percentage: number;
-}
+const marksData = [
+  { semester: 'Sem 1', cgpa: 8.2 },
+  { semester: 'Sem 2', cgpa: 8.5 },
+  { semester: 'Sem 3', cgpa: 8.7 },
+  { semester: 'Sem 4', cgpa: 8.9 },
+  { semester: 'Sem 5', cgpa: 9.1 }
+];
+
+const subjectAttendance = [
+  { subject: 'Mathematics', attendance: 92 },
+  { subject: 'Physics', attendance: 88 },
+  { subject: 'Chemistry', attendance: 85 },
+  { subject: 'Computer Science', attendance: 95 },
+  { subject: 'English', attendance: 78 }
+];
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<StudentProfile | null>(null);
-  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats>({
-    totalClasses: 0,
-    attendedClasses: 0,
-    percentage: 0
-  });
-  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
-  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (user) {
-      fetchStudentProfile();
-      fetchAttendanceStats();
-      fetchRecentNotifications();
-      fetchUpcomingClasses();
-    }
-  }, [user]);
-
-  const fetchStudentProfile = async () => {
-    const { data, error } = await supabase
-      .from('student_profiles')
-      .select('*')
-      .eq('user_id', user?.id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching profile:', error);
-      // If no profile exists, create mock data for demonstration
-      setProfile({
-        id: '1',
-        name: 'John Doe',
-        roll_number: '21CSE001',
-        branch: 'CSE',
-        section: 'A',
-        year: 3,
-        semester: '5',
-        cgpa: 8.5
-      });
-    } else {
-      setProfile(data);
-    }
+  // Mock student data
+  const studentData = {
+    name: 'John Doe',
+    rollNumber: '21CSE001',
+    semester: '5' as const,
+    branch: 'CSE' as const,
+    section: 'A' as const,
+    cgpa: 8.9,
+    currentAttendance: 85
   };
 
-  const fetchAttendanceStats = async () => {
-    if (!profile) return;
+  const upcomingClasses = [
+    { subject: 'Data Structures', time: '09:00 AM', room: 'CS-101' },
+    { subject: 'Computer Networks', time: '11:00 AM', room: 'CS-201' },
+    { subject: 'Database Systems', time: '02:00 PM', room: 'CS-301' }
+  ];
 
-    const { data: attendanceData, error } = await supabase
-      .from('attendance')
-      .select('is_present')
-      .eq('student_id', profile.id);
-
-    if (!error && attendanceData) {
-      const totalClasses = attendanceData.length;
-      const attendedClasses = attendanceData.filter(record => record.is_present).length;
-      const percentage = totalClasses > 0 ? (attendedClasses / totalClasses) * 100 : 0;
-
-      setAttendanceStats({ totalClasses, attendedClasses, percentage });
-    } else {
-      // Mock data for demonstration
-      setAttendanceStats({ totalClasses: 45, attendedClasses: 38, percentage: 84.4 });
-    }
-  };
-
-  const fetchRecentNotifications = async () => {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    if (!error && data) {
-      setRecentNotifications(data);
-    } else {
-      // Mock data for demonstration
-      setRecentNotifications([
-        {
-          id: '1',
-          title: 'Mid-term Exam Schedule',
-          message: 'Mid-term exams will start from next Monday.',
-          type: 'exam',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          title: 'Assignment Submission',
-          message: 'Database assignment due tomorrow.',
-          type: 'assignment',
-          created_at: new Date().toISOString()
-        }
-      ]);
-    }
-  };
-
-  const fetchUpcomingClasses = async () => {
-    if (!profile) return;
-
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as 
-      'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
-    
-    const { data, error } = await supabase
-      .from('timetable')
-      .select(`
-        *,
-        subjects (subject_name, subject_code),
-        faculty (name)
-      `)
-      .eq('year', profile.year)
-      .eq('semester', profile.semester)
-      .eq('branch', profile.branch)
-      .eq('section', profile.section)
-      .eq('day', today)
-      .order('time_slot');
-
-    if (!error && data) {
-      setUpcomingClasses(data);
-    } else {
-      // Mock data for demonstration
-      setUpcomingClasses([
-        {
-          id: '1',
-          time_slot: '09:00-10:00',
-          room_number: 'CS101',
-          subjects: { subject_name: 'Database Management Systems', subject_code: 'CS301' },
-          faculty: { name: 'Dr. Smith' }
-        },
-        {
-          id: '2',
-          time_slot: '10:00-11:00',
-          room_number: 'CS102',
-          subjects: { subject_name: 'Software Engineering', subject_code: 'CS401' },
-          faculty: { name: 'Dr. Johnson' }
-        }
-      ]);
-    }
-  };
-
-  if (!profile) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
+  const recentMarks = [
+    { subject: 'Machine Learning', exam: 'Mid Term', marks: '45/50', grade: 'A+' },
+    { subject: 'Software Engineering', exam: 'Assignment', marks: '18/20', grade: 'A' },
+    { subject: 'Computer Graphics', exam: 'Quiz', marks: '9/10', grade: 'A+' }
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Welcome Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg">
+        <h1 className="text-2xl font-bold mb-2">Welcome back, {studentData.name}!</h1>
+        <p className="opacity-90">
+          {studentData.rollNumber} • {studentData.branch} - {studentData.section} • Semester {studentData.semester}
+        </p>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Attendance</CardTitle>
+            <CardTitle className="text-sm font-medium">Overall Attendance</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{attendanceStats.percentage.toFixed(1)}%</div>
-            <Progress value={attendanceStats.percentage} className="mt-2" />
+            <div className="text-2xl font-bold">{studentData.currentAttendance}%</div>
+            <Progress value={studentData.currentAttendance} className="mt-2" />
             <p className="text-xs text-muted-foreground mt-2">
-              {attendanceStats.attendedClasses}/{attendanceStats.totalClasses} classes attended
+              {studentData.currentAttendance >= 75 ? '✅ Good standing' : '⚠️ Below required'}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CGPA</CardTitle>
+            <CardTitle className="text-sm font-medium">Current CGPA</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{profile.cgpa}</div>
+            <div className="text-2xl font-bold">{studentData.cgpa}</div>
             <p className="text-xs text-muted-foreground">
-              Current semester performance
+              {studentData.cgpa >= 8.5 ? 'First Class with Distinction' : 
+               studentData.cgpa >= 7.5 ? 'First Class' : 'Second Class'}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Classes</CardTitle>
+            <CardTitle className="text-sm font-medium">Classes Today</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{upcomingClasses.length}</div>
             <p className="text-xs text-muted-foreground">
-              Scheduled for today
+              Next: {upcomingClasses[0]?.time || 'No classes'}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Notifications</CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{recentNotifications.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Unread notifications
-            </p>
+            <div className="text-2xl font-bold">3</div>
+            <p className="text-xs text-muted-foreground">2 assignments, 1 project</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Student Profile</CardTitle>
+            <CardTitle>Attendance Overview</CardTitle>
+            <CardDescription>Overall attendance distribution</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Name</p>
-                <p className="text-sm">{profile.name}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Roll Number</p>
-                <p className="text-sm">{profile.roll_number}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Branch</p>
-                <Badge variant="secondary">{profile.branch}</Badge>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Section</p>
-                <Badge variant="outline">{profile.section}</Badge>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Year</p>
-                <p className="text-sm">{profile.year}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Semester</p>
-                <p className="text-sm">{profile.semester}</p>
-              </div>
-            </div>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={attendanceData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name} ${value}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {attendanceData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Today's Schedule</CardTitle>
-            <CardDescription>Your classes for today</CardDescription>
+            <CardTitle>CGPA Trend</CardTitle>
+            <CardDescription>Academic performance over semesters</CardDescription>
           </CardHeader>
           <CardContent>
-            {upcomingClasses.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No classes scheduled for today</p>
-            ) : (
-              <div className="space-y-3">
-                {upcomingClasses.map((classItem, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium">{classItem.subjects?.subject_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {classItem.faculty?.name} • Room {classItem.room_number}
-                      </p>
-                    </div>
-                    <Badge variant="outline">{classItem.time_slot}</Badge>
-                  </div>
-                ))}
-              </div>
-            )}
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={marksData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="semester" />
+                <YAxis domain={[6, 10]} />
+                <Tooltip />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="cgpa" 
+                  stroke="#8884d8" 
+                  strokeWidth={2}
+                  dot={{ fill: '#8884d8', strokeWidth: 2, r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Notifications</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentNotifications.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No recent notifications</p>
-          ) : (
+      {/* Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Today's Schedule */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Today's Schedule
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
-              {recentNotifications.slice(0, 3).map((notification) => (
-                <div key={notification.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Bell className="h-4 w-4 text-blue-500 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{notification.title}</p>
-                    <p className="text-xs text-muted-foreground">{notification.message}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(notification.created_at).toLocaleDateString()}
-                    </p>
+              {upcomingClasses.map((cls, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">{cls.subject}</p>
+                    <p className="text-sm text-gray-600">{cls.room}</p>
                   </div>
-                  <Badge variant="secondary">{notification.type}</Badge>
+                  <Badge variant="outline">{cls.time}</Badge>
                 </div>
               ))}
             </div>
-          )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Marks */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Recent Results
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentMarks.map((mark, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">{mark.subject}</p>
+                    <p className="text-sm text-gray-600">{mark.exam}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{mark.marks}</p>
+                    <Badge variant={mark.grade.startsWith('A') ? 'default' : 'secondary'}>
+                      {mark.grade}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Subject-wise Attendance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Subject-wise Attendance</CardTitle>
+          <CardDescription>Attendance percentage for each subject</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {subjectAttendance.map((subject, index) => (
+              <div key={index} className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">{subject.subject}</span>
+                  <span className="text-sm text-gray-600">{subject.attendance}%</span>
+                </div>
+                <Progress value={subject.attendance} className="h-2" />
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

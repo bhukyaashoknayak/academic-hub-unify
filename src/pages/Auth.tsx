@@ -9,8 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { GraduationCap, Loader2 } from 'lucide-react';
+import { GraduationCap, Shield, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+type UserRole = 'admin' | 'student';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -34,7 +36,8 @@ export default function Auth() {
     branch: '',
     section: '',
     year: '',
-    semester: ''
+    semester: '',
+    role: 'student' as UserRole
   });
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -48,7 +51,12 @@ export default function Auth() {
         toast.error(error.message || 'Failed to sign in');
       } else {
         toast.success('Signed in successfully');
-        navigate('/');
+        
+        // Determine role and navigate accordingly
+        const adminEmails = ['admin@college.edu', 'principal@college.edu', 'hod@college.edu'];
+        const isAdmin = adminEmails.includes(signInForm.email) || signInForm.email.includes('admin');
+        
+        navigate(isAdmin ? '/admin' : '/');
       }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred');
@@ -65,25 +73,35 @@ export default function Auth() {
       return;
     }
 
-    if (!signUpForm.name || !signUpForm.rollNumber || !signUpForm.branch || !signUpForm.section || !signUpForm.year || !signUpForm.semester) {
+    if (!signUpForm.name || !signUpForm.email) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // For students, additional fields are required
+    if (signUpForm.role === 'student' && (!signUpForm.rollNumber || !signUpForm.branch || !signUpForm.section || !signUpForm.year || !signUpForm.semester)) {
+      toast.error('Please fill in all student details');
       return;
     }
 
     setLoading(true);
 
     try {
-      const metadata = {
+      const metadata = signUpForm.role === 'student' ? {
         name: signUpForm.name,
         roll_number: signUpForm.rollNumber,
         phone: signUpForm.phone,
         branch: signUpForm.branch,
         section: signUpForm.section,
         year: parseInt(signUpForm.year),
-        semester: signUpForm.semester
+        semester: signUpForm.semester,
+        role: signUpForm.role
+      } : {
+        name: signUpForm.name,
+        role: signUpForm.role
       };
 
-      const { error } = await signUp(signUpForm.email, signUpForm.password, metadata);
+      const { error } = await signUp(signUpForm.email, signUpForm.password, metadata, signUpForm.role);
       
       if (error) {
         toast.error(error.message || 'Failed to sign up');
@@ -133,7 +151,7 @@ export default function Auth() {
                     <Input
                       id="signin-email"
                       type="email"
-                      placeholder="your.email@student.college.edu"
+                      placeholder="your.email@college.edu or admin@college.edu"
                       value={signInForm.email}
                       onChange={(e) => setSignInForm({ ...signInForm, email: e.target.value })}
                       required
@@ -154,6 +172,13 @@ export default function Auth() {
                     Sign In
                   </Button>
                 </form>
+                
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700 font-medium">Demo Accounts:</p>
+                  <p className="text-xs text-blue-600">Student: student@college.edu</p>
+                  <p className="text-xs text-blue-600">Admin: admin@college.edu</p>
+                  <p className="text-xs text-blue-600">Password: demo123</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -163,31 +188,45 @@ export default function Auth() {
               <CardHeader>
                 <CardTitle>Create Account</CardTitle>
                 <CardDescription>
-                  Register as a new student to access the portal
+                  Register as a new user to access the portal
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Full Name *</Label>
-                      <Input
-                        id="name"
-                        value={signUpForm.name}
-                        onChange={(e) => setSignUpForm({ ...signUpForm, name: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="rollNumber">Roll Number *</Label>
-                      <Input
-                        id="rollNumber"
-                        placeholder="21CSE001"
-                        value={signUpForm.rollNumber}
-                        onChange={(e) => setSignUpForm({ ...signUpForm, rollNumber: e.target.value })}
-                        required
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Account Type *</Label>
+                    <Select
+                      value={signUpForm.role}
+                      onValueChange={(value: UserRole) => setSignUpForm({ ...signUpForm, role: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Account Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="student">
+                          <div className="flex items-center gap-2">
+                            <GraduationCap className="h-4 w-4" />
+                            Student
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="admin">
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-4 w-4" />
+                            Administrator
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      value={signUpForm.name}
+                      onChange={(e) => setSignUpForm({ ...signUpForm, name: e.target.value })}
+                      required
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -195,103 +234,119 @@ export default function Auth() {
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="your.email@student.college.edu"
+                      placeholder={signUpForm.role === 'admin' ? 'admin@college.edu' : 'your.email@student.college.edu'}
                       value={signUpForm.email}
                       onChange={(e) => setSignUpForm({ ...signUpForm, email: e.target.value })}
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      placeholder="+91 9876543210"
-                      value={signUpForm.phone}
-                      onChange={(e) => setSignUpForm({ ...signUpForm, phone: e.target.value })}
-                    />
-                  </div>
+                  {signUpForm.role === 'student' && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="rollNumber">Roll Number *</Label>
+                          <Input
+                            id="rollNumber"
+                            placeholder="21CSE001"
+                            value={signUpForm.rollNumber}
+                            onChange={(e) => setSignUpForm({ ...signUpForm, rollNumber: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">Phone Number</Label>
+                          <Input
+                            id="phone"
+                            placeholder="+91 9876543210"
+                            value={signUpForm.phone}
+                            onChange={(e) => setSignUpForm({ ...signUpForm, phone: e.target.value })}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="branch">Branch *</Label>
-                      <Select
-                        value={signUpForm.branch}
-                        onValueChange={(value) => setSignUpForm({ ...signUpForm, branch: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Branch" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CSE">Computer Science</SelectItem>
-                          <SelectItem value="ECE">Electronics</SelectItem>
-                          <SelectItem value="EEE">Electrical</SelectItem>
-                          <SelectItem value="MECH">Mechanical</SelectItem>
-                          <SelectItem value="CIVIL">Civil</SelectItem>
-                          <SelectItem value="IT">Information Technology</SelectItem>
-                          <SelectItem value="CHEM">Chemical</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="section">Section *</Label>
-                      <Select
-                        value={signUpForm.section}
-                        onValueChange={(value) => setSignUpForm({ ...signUpForm, section: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Section" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="A">Section A</SelectItem>
-                          <SelectItem value="B">Section B</SelectItem>
-                          <SelectItem value="C">Section C</SelectItem>
-                          <SelectItem value="D">Section D</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="branch">Branch *</Label>
+                          <Select
+                            value={signUpForm.branch}
+                            onValueChange={(value) => setSignUpForm({ ...signUpForm, branch: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Branch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="CSE">Computer Science</SelectItem>
+                              <SelectItem value="ECE">Electronics</SelectItem>
+                              <SelectItem value="EEE">Electrical</SelectItem>
+                              <SelectItem value="MECH">Mechanical</SelectItem>
+                              <SelectItem value="CIVIL">Civil</SelectItem>
+                              <SelectItem value="IT">Information Technology</SelectItem>
+                              <SelectItem value="CHEM">Chemical</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="section">Section *</Label>
+                          <Select
+                            value={signUpForm.section}
+                            onValueChange={(value) => setSignUpForm({ ...signUpForm, section: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Section" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="A">Section A</SelectItem>
+                              <SelectItem value="B">Section B</SelectItem>
+                              <SelectItem value="C">Section C</SelectItem>
+                              <SelectItem value="D">Section D</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="year">Year *</Label>
-                      <Select
-                        value={signUpForm.year}
-                        onValueChange={(value) => setSignUpForm({ ...signUpForm, year: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Year" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">First Year</SelectItem>
-                          <SelectItem value="2">Second Year</SelectItem>
-                          <SelectItem value="3">Third Year</SelectItem>
-                          <SelectItem value="4">Fourth Year</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="semester">Semester *</Label>
-                      <Select
-                        value={signUpForm.semester}
-                        onValueChange={(value) => setSignUpForm({ ...signUpForm, semester: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Semester" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">Semester 1</SelectItem>
-                          <SelectItem value="2">Semester 2</SelectItem>
-                          <SelectItem value="3">Semester 3</SelectItem>
-                          <SelectItem value="4">Semester 4</SelectItem>
-                          <SelectItem value="5">Semester 5</SelectItem>
-                          <SelectItem value="6">Semester 6</SelectItem>
-                          <SelectItem value="7">Semester 7</SelectItem>
-                          <SelectItem value="8">Semester 8</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="year">Year *</Label>
+                          <Select
+                            value={signUpForm.year}
+                            onValueChange={(value) => setSignUpForm({ ...signUpForm, year: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">First Year</SelectItem>
+                              <SelectItem value="2">Second Year</SelectItem>
+                              <SelectItem value="3">Third Year</SelectItem>
+                              <SelectItem value="4">Fourth Year</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="semester">Semester *</Label>
+                          <Select
+                            value={signUpForm.semester}
+                            onValueChange={(value) => setSignUpForm({ ...signUpForm, semester: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Semester" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">Semester 1</SelectItem>
+                              <SelectItem value="2">Semester 2</SelectItem>
+                              <SelectItem value="3">Semester 3</SelectItem>
+                              <SelectItem value="4">Semester 4</SelectItem>
+                              <SelectItem value="5">Semester 5</SelectItem>
+                              <SelectItem value="6">Semester 6</SelectItem>
+                              <SelectItem value="7">Semester 7</SelectItem>
+                              <SelectItem value="8">Semester 8</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password *</Label>
