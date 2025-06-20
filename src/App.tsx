@@ -9,6 +9,7 @@ import Layout from "@/components/Layout";
 import Dashboard from "@/components/Dashboard";
 import AttendanceModule from "@/components/AttendanceModule";
 import MarksModule from "@/components/MarksModule";
+import ProfileModule from "@/components/ProfileModule";
 import Auth from "@/pages/Auth";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,11 @@ function AppRoutes() {
           <MarksModule />
         </ProtectedRoute>
       } />
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <ProfileModule />
+        </ProtectedRoute>
+      } />
       <Route path="/timetable" element={
         <ProtectedRoute>
           <div>Timetable Module - Coming Soon</div>
@@ -64,11 +70,6 @@ function AppRoutes() {
       <Route path="/feedback" element={
         <ProtectedRoute>
           <div>Feedback & Grievance Module - Coming Soon</div>
-        </ProtectedRoute>
-      } />
-      <Route path="/profile" element={
-        <ProtectedRoute>
-          <div>Profile Module - Coming Soon</div>
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
